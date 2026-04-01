@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orientation Lycée Tourcoing</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #141e30, #243b55);
+  color: white;
+  margin: 0;
+}
+.header {
+  padding: 10px 20px;
+  text-align: center;
+}
+.container {
+  background: rgba(0,0,0,0.7);
+  padding: 25px;
+  border-radius: 15px;
+  max-width: 650px;
+  margin: 20px auto;
+  text-align: center;
+}
+.progress {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.bar {
+  height: 6px;
+  background: #444;
+  border-radius: 10px;
+}
+.bar-fill {
+  height: 100%;
+  background: #3a86ff;
+  width: 0%;
+  transition: width 0.3s;
+}
+button {
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  background: #3a86ff;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+}
+button:hover { background: #2653b3; }
+#chart { max-width: 100%; height: auto; margin: 20px auto; }
+.result { text-align: left; margin-top: 20px; }
+.details {
+  background: rgba(255,255,255,0.1);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.footer-left {
+  position: fixed;
+  bottom: 10px;
+  left: 15px;
+  font-size: 12px;
+}
+.footer-right {
+  position: fixed;
+  bottom: 10px;
+  right: 15px;
+  font-size: 12px;
+  cursor: pointer;
+}
+a { color: #aaa; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="header"><h3>Ensemble scolaire Lycée Tourcoing</h3></div>
+
+<div class="container">
+  <h1>🎓 Orientation</h1>
+  <div class="progress">
+    <span id="progressText"></span>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+  <p id="question"></p>
+  <div id="answers"></div>
+  <canvas id="chart"></canvas>
+  <div id="resultText" class="result"></div>
+</div>
+
+<div class="footer-left">
+  <a href="https://www.lyceetourcoing.fr" target="_blank">🌐 Lycée Tourcoing</a>
+</div>
+<div class="footer-right" onclick="showStats()">📊 Bac</div>
+
+<script>
+// QUESTIONS
+let questions = [
+  {q:"Aimes-tu les maths ?", g:2},
+  {q:"Aimes-tu réparer des véhicules ?", p:4},
+  {q:"Aimes-tu le commerce ?", p:3},
+  {q:"Aimes-tu l’économie ?", t:3},
+  {q:"Aimes-tu travailler avec tes mains ?", p:3},
+  {q:"Aimes-tu les sciences ?", g:2},
+  {q:"Aimes-tu gérer ?", t:3},
+  {q:"Aimes-tu étudier longtemps ?", g:2}
+];
+while(questions.length < 40){ questions.push(...questions.slice(0,5)); }
+questions = questions.slice(0,40).sort(()=>Math.random()-0.5);
+
+let index = 0;
+let scores = {g:0,p:0,t:0};
+let chartInstance = null;
+
+function updateProgress(){
+  let percent = Math.round((index / questions.length) * 100);
+  document.getElementById("progressText").innerText = `${index}/${questions.length} (${percent}%)`;
+  document.getElementById("barFill").style.width = percent + "%";
+}
+
+function showQ(){
+  updateProgress();
+  let q = questions[index];
+  document.getElementById("question").innerText = q.q;
+  document.getElementById("answers").innerHTML = `
+    <button onclick="answer(true)">Oui</button>
+    <button onclick="answer(false)">Non</button>
+  `;
+}
+
+function answer(choice){
+  let q = questions[index];
+  if(choice){ scores.g += q.g||0; scores.p += q.p||0; scores.t += q.t||0; }
+  index++;
+  if(index < questions.length){ showQ(); } else { updateProgress(); showResult(); }
+}
+
+function showResult(){
+  let total = scores.g + scores.p + scores.t; if(total===0) total=1;
+  let g = ((scores.g/total)*100).toFixed(1);
+  let p = ((scores.p/total)*100).toFixed(1);
+  let t = ((scores.t/total)*100).toFixed(1);
+
+  document.getElementById("answers").innerHTML = `<button onclick="restartQuiz()">🔄 Recommencer</button>`;
+  document.getElementById("question").innerText = "Résultat";
+
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(document.getElementById("chart"),{
+    type:"doughnut",
+    data:{ labels:["Générale","Professionnelle","Technologique"], datasets:[{ data:[g,p,t], backgroundColor:["#4CAF50","#FF9800","#2196F3"] }] },
+    options:{ responsive:true, plugins:{legend:{position:'bottom'}} }
+  });
+
+  let maxScore = Math.max(g,p,t);
+  let suggestion = maxScore==g?"Filière Générale":maxScore==p?"Filière Professionnelle":"Filière Technologique";
+
+  let detail = `<p><b>Résultat :</b> Générale ${g}% | Professionnelle ${p}% | Technologique ${t}%</p>`;
+  detail += `<p><b>Suggestion :</b> ${suggestion}</p>`;
+
+  if(p > g && p > t){
+    detail += `<div class="details"><b>Filières Pro :</b><br>
+      MVA : 100%<br>MELEC : 90,5%<br>MSPC : 100%<br>TRPM : 100%<br>
+      TFBMA : 87,5%<br>TEB EE : 92,9%<br>MCVA : 95,8%<br>MCVB : 95,2%<br>
+      MA : 100%<br>AGOrA : 88,9%<br>OTM : 100%<br>LOGISTIQUE : 100%</div>`;
+  }
+
+  if(t > g && t > p){
+    detail += `<div class="details"><b>Filières Technologiques :</b><br>
+      STMG : 100%<br>STI2D : 100%</div>`;
+  }
+
+  document.getElementById("resultText").innerHTML = detail;
+}
+
+function restartQuiz(){ index=0; scores={g:0,p:0,t:0}; document.getElementById("resultText").innerHTML=""; showQ(); }
+
+function showStats(){
+  alert(`🎓 Résultats au BAC :\n
+BAC PRO :
+MVA : 100%
+MELEC : 90,5%
+MSPC : 100%
+TRPM : 100%
+TFBMA : 87,5%
+TEB EE : 92,9%
+MCVA : 95,8%
+MCVB : 95,2%
+MA : 100%
+AGOrA : 88,9%
+OTM : 100%
+LOGISTIQUE : 100%
+
+BAC TECHNO :
+STI2D : 100%
+STMG : 100%`);
+}
+
+showQ();
+</script>
+</body>
+</html>
